@@ -197,7 +197,7 @@ class ManageUsers{
             connection = app.connectData(login);
 
             String sql = "UPDATE Khachhang SET TenKhachHang = ? , DiaChi = ?, Email = ?, SDT = ?"
-                    + "WHERE MaKhachHang = ?";
+                    + " WHERE MaKhachHang = ?";
             statement = connection.prepareStatement(sql);
 
             statement.setString(1, customer.getName());
