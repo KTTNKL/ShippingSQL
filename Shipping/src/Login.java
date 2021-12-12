@@ -32,6 +32,7 @@ public class Login extends JFrame {
                     }else if(passwordT.getText().equals("123")){
                         if(usernameT.getText().equals("login1")){
                             new Profile();//KH
+                            dispose();
                         }
                         else if(usernameT.getText().equals("login3")){
                             new ManageAccount();//NV
