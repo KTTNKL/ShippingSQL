@@ -69,7 +69,7 @@ public class Profile extends JFrame {
         SQLServerDataSource ds = new SQLServerDataSource();
         ds.setUser("login1");
         ds.setPassword("123");
-        ds.setServerName("MSI\\SQLEXPRESS");
+        ds.setServerName("DESKTOP-J84I4CF\\KYLUONG");
         ds.setPortNumber(1433);
         ds.setDatabaseName("Online_Shopping");
         try{

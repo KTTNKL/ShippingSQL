@@ -36,9 +36,11 @@ public class Login extends JFrame {
                         }
                         else if(usernameT.getText().equals("login3")){
                             new ManageAccount("login3");//NV
+                            dispose();
 
                         }else if(usernameT.getText().equals("login6")){
                             new ManageAccount("login6");//NV
+                            dispose();
 
                         }else{
                             JOptionPane.showMessageDialog(null,

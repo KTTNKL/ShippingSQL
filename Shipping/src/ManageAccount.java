@@ -5,6 +5,7 @@ import java.awt.event.ActionListener;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,7 +17,7 @@ class User {
     private String name;
     private String address;
     private String email;
-
+    private String phone;
     public User(String id, String name, String address, String email, String phone) {
         this.id = id;
         this.name = name;
@@ -25,7 +26,7 @@ class User {
         this.phone = phone;
     }
 
-    private String phone;
+
 
 
 
@@ -98,10 +99,13 @@ class DataConnection{
         ds.setPortNumber(1433);
         ds.setDatabaseName("Online_Shopping");
         Connection conn = null;
+
+
         try{
             conn = ds.getConnection();
-            System.out.println("Database connect successfully!");
-            System.out.println(conn.getMetaData());
+            if (conn.getMetaData().supportsTransactionIsolationLevel(Connection.TRANSACTION_REPEATABLE_READ)) {
+                conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+            }
         } catch (SQLServerException throwables) {
             throwables.printStackTrace();
         } catch (SQLException throwables) {
@@ -150,6 +154,129 @@ class ManageUsers{
                     connection.close();
                 } catch (SQLException ex) {
 
+                }
+            }
+        }
+        return userList;
+    }
+
+    public static List<User> ReadWriteDelay(User customer, String login) throws SQLException {
+
+        List<User> userList = new ArrayList<>();
+        PreparedStatement pstatement = null;
+        Connection connection = null;
+        Statement statement = null;
+
+
+
+        try {
+
+            DataConnection app = new DataConnection();
+            connection = app.connectData(login);
+            String sql = "SELECT * FROM KhachHang ";
+            connection.setAutoCommit(false);
+            statement = connection.createStatement();
+            ResultSet res = statement.executeQuery(sql);
+            while (res.next()) {
+                User usr = new User(res.getString("MaKhachHang"),
+                        res.getString("TenKhachHang"),
+                        res.getString("DiaChi"),
+                        res.getString("Email"),
+                        res.getString("SDT"));
+
+                //usr.show();
+                userList.add(usr);
+            }
+
+            TimeUnit.SECONDS.sleep(10);
+
+            sql = "UPDATE Khachhang SET TenKhachHang = ? , DiaChi = ?, Email = ?, SDT = ?"
+                    + " WHERE MaKhachHang = ?";
+            pstatement = connection.prepareStatement(sql);
+
+            pstatement.setString(1, customer.getName());
+            pstatement.setString(2, customer.getAddress());
+            pstatement.setString(3, customer.getEmail());
+            pstatement.setString(4, customer.getPhone());
+            pstatement.setString(5, customer.getId());
+
+
+            pstatement.execute();
+            connection.commit();
+
+        } catch (SQLException | InterruptedException ex) {
+            Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if(statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException ex) {
+                    connection.rollback();
+                }
+            }
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException ex) {
+                    connection.rollback();
+                }
+            }
+        }
+        return userList;
+    }
+
+    public static List<User> ReadWrite(User customer, String login) throws SQLException {
+        List<User> userList = new ArrayList<>();
+        PreparedStatement pstatement = null;
+        Connection connection = null;
+        Statement statement = null;
+        try {
+            DataConnection app = new DataConnection();
+            connection = app.connectData(login);
+            String sql = "SELECT * FROM KhachHang ";
+            connection.setAutoCommit(false);
+            statement = connection.createStatement();
+            ResultSet res = statement.executeQuery(sql);
+            while (res.next()) {
+                User usr = new User(res.getString("MaKhachHang"),
+                        res.getString("TenKhachHang"),
+                        res.getString("DiaChi"),
+                        res.getString("Email"),
+                        res.getString("SDT"));
+
+                //usr.show();
+                userList.add(usr);
+            }
+
+            sql = "UPDATE Khachhang SET TenKhachHang = ? , DiaChi = ?, Email = ?, SDT = ?"
+                    + " WHERE MaKhachHang = ?";
+            pstatement = connection.prepareStatement(sql);
+
+            pstatement.setString(1, customer.getName());
+            pstatement.setString(2, customer.getAddress());
+            pstatement.setString(3, customer.getEmail());
+            pstatement.setString(4, customer.getPhone());
+            pstatement.setString(5, customer.getId());
+
+
+            pstatement.execute();
+            connection.commit();
+
+        } catch (SQLException ex) {
+            Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if(statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException ex) {
+                    connection.rollback();
+                }
+            }
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException ex) {
+                    connection.rollback();
                 }
             }
         }
@@ -229,6 +356,94 @@ class ManageUsers{
         }
     }
 
+    public static void editCustomerDelay(User customer, String login){
+        Connection connection = null;
+        PreparedStatement statement = null;
+        try {
+
+            DataConnection app = new DataConnection();
+            connection = app.connectData(login);
+            connection.setAutoCommit(false);
+
+
+            TimeUnit.SECONDS.sleep(10);
+            if(customer.getName().equals("1")){
+                connection.rollback();
+            }
+            else{
+                connection.commit();
+            }
+
+        } catch (SQLException | InterruptedException ex) {
+            Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException ex) {
+                    Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException ex) {
+                    Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+    }
+
+    public static  List<User> SearchByID(String ID, String login) {
+        List<User> userList = new ArrayList<>();
+
+        Connection connection = null;
+        PreparedStatement statement = null;
+
+        try {
+            DataConnection app = new DataConnection();
+            connection = app.connectData(login);
+
+            //query
+            String sql = "select * from KhachHang where MaKhachHang = ?";
+            statement = connection.prepareStatement(sql);
+            statement.setString(1,  ID );
+
+            ResultSet res = statement.executeQuery();
+
+            while (res.next()) {
+                User usr = new User(res.getString("MaKhachHang"),
+                        res.getString("TenKhachHang"),
+                        res.getString("DiaChi"),
+                        res.getString("Email"),
+                        res.getString("SDT"));
+
+                //usr.show();
+                userList.add(usr);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException ex) {
+                    Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException ex) {
+                    Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+        return userList;
+    }
+
 }
 
 public class ManageAccount extends JFrame  {
@@ -248,13 +463,19 @@ public class ManageAccount extends JFrame  {
     private JButton deleteDriverButton;
     private JButton deleteBusinessButton;
     private JLabel countCustomerT;
+    private JButton btnPhantom;
+    private JButton btnUnrepeatable;
+    private JButton btnC1;
+    private JButton btnRefresh;
+    private JButton C1Button;
+    private JButton C2Button;
 
 
     List<User> customerList = new ArrayList<>();
     public ManageAccount(String login){
         setContentPane(managePanel);
         setTitle("Profile");
-        setSize(2050,1000);
+        setSize(1000,700);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setVisible(true);
         showUser(login);
@@ -296,6 +517,127 @@ public class ManageAccount extends JFrame  {
                         ManageUsers.editCustomer(customer, login);
                         setCountCustomerT(login);
                         showUser(login);
+
+                    }
+                }
+            }
+        });
+        logoutButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dispose();
+                new Login();
+            }
+        });
+        btnPhantom.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("before");
+                setCountCustomerT(login);
+                try {
+                    TimeUnit.SECONDS.sleep(10);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+                System.out.println("aftelldjkladk");
+                showUser(login);
+
+            }
+        });
+        btnUnrepeatable.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                customerList = ManageUsers.ViewAllCustomers(login);
+                String input = JOptionPane.showInputDialog("Find By ID", "Enter ID to search");
+                customerList = ManageUsers.SearchByID(input, login);
+                if(customerList.size() > 0){
+                    JOptionPane.showMessageDialog(null,"User exist");
+                }
+                customerList.clear();
+                try {
+                    TimeUnit.SECONDS.sleep(10);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+                if (input != null && input.length() > 0) {
+                    customerList = ManageUsers.SearchByID(input, login);
+                    if(customerList.size() == 0){
+                        JOptionPane.showMessageDialog(null,"Cannot show user's information");
+                    }
+                    else {
+                        String data[][] = new String[customerList.size()][];
+                        for (int i = 0; i < customerList.size(); i++) {
+                            data[i] = new String[4];
+                            data[i] = customerList.get(i).ObjectConverter();
+                        }
+                        customerTable.setModel(new DefaultTableModel(
+                                data,
+                                new String[]{"Name", "Address", "Email", "Phone"}
+                        ));
+                        clearTextField();
+                    }
+                } else {
+                    showUser(login);
+                }
+                showUser(login);
+                setCountCustomerT(login);
+            }
+
+        });
+
+        btnRefresh.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showUser(login);
+                setCountCustomerT(login);
+            }
+        });
+        C1Button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                customerList = ManageUsers.ViewAllCustomers(login);
+                int selectedIndex = customerTable.getSelectedRow();
+                if(selectedIndex >= 0){
+                    User customer = customerList.get(selectedIndex);
+                    if(!nameT.getText().equals((""))) customer.setName(nameT.getText());
+                    if(!emailT.getText().equals((""))) customer.setName(emailT.getText());
+                    if(!addressT.getText().equals((""))) customer.setName(addressT.getText());
+                    if(!phoneT.getText().equals((""))) customer.setName(phoneT.getText());
+                    int opt = JOptionPane.showConfirmDialog(null, "Do you want to update this customer?");
+                    if (opt == 0) {
+                        try {
+                            C1(customer, login);
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                        }
+                        showUser(login);
+                        setCountCustomerT(login);
+
+                    }
+                }
+            }
+        });
+        C2Button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                customerList = ManageUsers.ViewAllCustomers(login);
+                int selectedIndex = customerTable.getSelectedRow();
+                if(selectedIndex >= 0){
+                    User customer = customerList.get(selectedIndex);
+                    if(!nameT.getText().equals((""))) customer.setName(nameT.getText());
+                    if(!emailT.getText().equals((""))) customer.setName(emailT.getText());
+                    if(!addressT.getText().equals((""))) customer.setName(addressT.getText());
+                    if(!phoneT.getText().equals((""))) customer.setName(phoneT.getText());
+                    int opt = JOptionPane.showConfirmDialog(null, "Do you want to update this customer?");
+                    if (opt == 0) {
+                        try {
+                            C2(customer, login);
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                        }
+                        showUser(login);
+                        setCountCustomerT(login);
+
                     }
                 }
             }
@@ -315,6 +657,34 @@ public class ManageAccount extends JFrame  {
         ));
         clearTextField();
     }
+    private void C1(User customer, String login) throws SQLException {
+        customerList = ManageUsers.ReadWriteDelay(customer,login);
+        String data[][] = new String[customerList.size()][];
+        for (int i = 0; i < customerList.size(); i++) {
+            data[i] = new String[4];
+            data[i] = customerList.get(i).ObjectConverter();
+        }
+        customerTable.setModel(new DefaultTableModel(
+                data,
+                new String[]{"Name", "Address", "Email", "Phone"}
+        ));
+        clearTextField();
+    }
+
+    private void C2(User customer, String login) throws SQLException {
+        customerList = ManageUsers.ReadWrite(customer,login);
+        String data[][] = new String[customerList.size()][];
+        for (int i = 0; i < customerList.size(); i++) {
+            data[i] = new String[4];
+            data[i] = customerList.get(i).ObjectConverter();
+        }
+        customerTable.setModel(new DefaultTableModel(
+                data,
+                new String[]{"Name", "Address", "Email", "Phone"}
+        ));
+        clearTextField();
+    }
+
 
     private void setCountCustomerT(String login){
         this.countCustomerT.setText("Number of customers:   " + String.valueOf(countCustomer(login)));
@@ -336,9 +706,9 @@ public class ManageAccount extends JFrame  {
         return count;
     }
 
-    public static void main(String[] args) {
-        ManageAccount loginFrame = new ManageAccount("login3");
-
-
-    }
+//    public static void main(String[] args) {
+//        ManageAccount loginFrame = new ManageAccount("login3");
+//
+//
+//    }
 }
