@@ -106,6 +106,12 @@ class DataConnection{
             if (conn.getMetaData().supportsTransactionIsolationLevel(Connection.TRANSACTION_REPEATABLE_READ)) {
                 conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             }
+
+
+            //Fix phantom
+//            if (conn.getMetaData().supportsTransactionIsolationLevel(Connection.TRANSACTION_SERIALIZABLE)) {
+//                conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+//            }
         } catch (SQLServerException throwables) {
             throwables.printStackTrace();
         } catch (SQLException throwables) {
@@ -291,9 +297,11 @@ class ManageUsers{
             DataConnection app = new DataConnection();
             connection = app.connectData(login);
             String sql = "delete from KhachHang where MaKhachHang = ?";
+            connection.setAutoCommit(false);
             statement = connection.prepareStatement(sql);
             statement.setString(1, id);
             statement.execute();
+            connection.commit();
         } catch (SQLException ex) {
             Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
@@ -395,7 +403,7 @@ class ManageUsers{
         }
     }
 
-    public static  List<User> SearchByID(String ID, String login) {
+    public static  List<User> Unrepeatable(String ID, String login) {
         List<User> userList = new ArrayList<>();
 
         Connection connection = null;
@@ -404,7 +412,7 @@ class ManageUsers{
         try {
             DataConnection app = new DataConnection();
             connection = app.connectData(login);
-
+            connection.setAutoCommit(false);
             //query
             String sql = "select * from KhachHang where MaKhachHang = ?";
             statement = connection.prepareStatement(sql);
@@ -422,6 +430,35 @@ class ManageUsers{
                 //usr.show();
                 userList.add(usr);
             }
+            if(userList.size() > 0){
+                JOptionPane.showMessageDialog(null,"User exist");
+            }
+            userList.clear();
+            try {
+                TimeUnit.SECONDS.sleep(10);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+
+            statement = connection.prepareStatement(sql);
+            statement.setString(1,  ID );
+
+            res = statement.executeQuery();
+
+            while (res.next()) {
+                User usr = new User(res.getString("MaKhachHang"),
+                        res.getString("TenKhachHang"),
+                        res.getString("DiaChi"),
+                        res.getString("Email"),
+                        res.getString("SDT"));
+
+                //usr.show();
+                userList.add(usr);
+            }
+            if(userList.size() == 0){
+                JOptionPane.showMessageDialog(null,"Cannot show user's information");
+            }
+            connection.commit();
         } catch (SQLException ex) {
             Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
@@ -532,55 +569,47 @@ public class ManageAccount extends JFrame  {
         btnPhantom.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                System.out.println("before");
-                setCountCustomerT(login);
                 try {
-                    TimeUnit.SECONDS.sleep(10);
+                    StringBuilder finalCount = new StringBuilder ();
+                    List<User> customerList = new ArrayList<>();
+
+                    customerList = showCountAndUsers(login, finalCount);
+
+                    System.out.println(finalCount);
+                    System.out.println(customerList.size());
+                    countCustomerT.setText("Number of customers:   " + finalCount);
+                    String data[][] = new String[customerList.size()][];
+                    for (int i = 0; i < customerList.size(); i++) {
+                        data[i] = new String[4];
+                        data[i] = customerList.get(i).ObjectConverter();
+                    }
+                    customerTable.setModel(new DefaultTableModel(
+                            data,
+                            new String[]{"Name", "Address", "Email", "Phone"}
+                    ));
+
+
                 } catch (InterruptedException ex) {
                     ex.printStackTrace();
                 }
-                System.out.println("aftelldjkladk");
-                showUser(login);
 
             }
         });
         btnUnrepeatable.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                customerList = ManageUsers.ViewAllCustomers(login);
                 String input = JOptionPane.showInputDialog("Find By ID", "Enter ID to search");
-                customerList = ManageUsers.SearchByID(input, login);
-                if(customerList.size() > 0){
-                    JOptionPane.showMessageDialog(null,"User exist");
+                customerList = ManageUsers.Unrepeatable(input, login);
+                String data[][] = new String[customerList.size()][];
+                for (int i = 0; i < customerList.size(); i++) {
+                    data[i] = new String[4];
+                    data[i] = customerList.get(i).ObjectConverter();
                 }
-                customerList.clear();
-                try {
-                    TimeUnit.SECONDS.sleep(10);
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
-                }
-                if (input != null && input.length() > 0) {
-                    customerList = ManageUsers.SearchByID(input, login);
-                    if(customerList.size() == 0){
-                        JOptionPane.showMessageDialog(null,"Cannot show user's information");
-                    }
-                    else {
-                        String data[][] = new String[customerList.size()][];
-                        for (int i = 0; i < customerList.size(); i++) {
-                            data[i] = new String[4];
-                            data[i] = customerList.get(i).ObjectConverter();
-                        }
-                        customerTable.setModel(new DefaultTableModel(
-                                data,
-                                new String[]{"Name", "Address", "Email", "Phone"}
-                        ));
-                        clearTextField();
-                    }
-                } else {
-                    showUser(login);
-                }
-                showUser(login);
-                setCountCustomerT(login);
+                customerTable.setModel(new DefaultTableModel(
+                        data,
+                        new String[]{"Name", "Address", "Email", "Phone"}
+                ));
+                clearTextField();
             }
 
         });
@@ -657,6 +686,80 @@ public class ManageAccount extends JFrame  {
         ));
         clearTextField();
     }
+
+    private   List<User> showCountAndUsers(String login, StringBuilder finalCount) throws InterruptedException {
+        int count =0;
+        List<User> userList = new ArrayList<>();
+        List<User> finalcustomerList = new ArrayList<>();
+        Connection connection = null;
+        Statement statement = null;
+        try {
+            DataConnection app = new DataConnection();
+            connection = app.connectData(login);
+            String sql = "SELECT * FROM KhachHang ";
+//            connection.setAutoCommit(false);
+            statement = connection.createStatement();
+            ResultSet res = statement.executeQuery(sql);
+            while (res.next()) {
+                User usr = new User(res.getString("MaKhachHang"),
+                        res.getString("TenKhachHang"),
+                        res.getString("DiaChi"),
+                        res.getString("Email"),
+                        res.getString("SDT"));
+
+                //usr.show();
+                userList.add(usr);
+            }
+            List<User> customerList = userList;
+
+            for(int i=0; i<customerList.size(); ++i){
+                count++;
+            }
+            finalCount.append(String.valueOf(count));
+
+
+
+            TimeUnit.SECONDS.sleep(10);
+            sql = "SELECT * FROM KhachHang ";
+
+            statement = connection.createStatement();
+            res = statement.executeQuery(sql);
+            while (res.next()) {
+                User usr = new User(res.getString("MaKhachHang"),
+                        res.getString("TenKhachHang"),
+                        res.getString("DiaChi"),
+                        res.getString("Email"),
+                        res.getString("SDT"));
+
+                //usr.show();
+                finalcustomerList.add(usr);
+            }
+//            connection.commit();
+
+        } catch (SQLException  ex) {
+            Logger.getLogger(ManageUsers.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if(statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException ex) {
+
+                }
+            }
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException ex) {
+
+                }
+            }
+        }
+
+
+        System.out.println(finalcustomerList.size());
+        return finalcustomerList;
+    }
+
     private void C1(User customer, String login) throws SQLException {
         customerList = ManageUsers.ReadWriteDelay(customer,login);
         String data[][] = new String[customerList.size()][];
